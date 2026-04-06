@@ -238,97 +238,74 @@ function drawFloorShape(sx, sy, w, h) {
   ctx.fill();
 }
  
-// ─── DRAW SPRITE (placeholder boxes) ─────────────────────────────────────────
-// Replace these with actual sprite images! 
-// ctx.drawImage(spriteSheet, srcX, srcY, srcW, srcH, dx, dy, dw, dh);
- 
+const spritePlayer = new Image();
+spritePlayer.src = 'personagem.png';
+
+const spriteEnemy = new Image();
+spriteEnemy.src = 'inimigo.png';
+
+const SPRITE_W = 48;
+const SPRITE_H = 64;
 function drawPlayerSprite(sx, sy, angle, dead) {
   ctx.save();
-  ctx.translate(sx, sy - 8);
-  // shadow
-  ctx.globalAlpha = .25;
+  ctx.translate(sx, sy);
+
+  ctx.globalAlpha = .3;
   ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.ellipse(0, 14, 10, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 4, 14, 6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
- 
+
   if (dead) {
-    ctx.fillStyle = '#ff2a6d88';
-    ctx.fillRect(-8, -8, 16, 16);
+    ctx.rotate(Math.PI / 2);
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(spritePlayer, -SPRITE_H / 2, -SPRITE_W / 2, SPRITE_H, SPRITE_W);
     ctx.restore();
     return;
   }
- 
-  // body (replace with sprite image)
-  ctx.fillStyle = '#05d9e8';
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 8, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
- 
-  // gun direction indicator
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
+
   const isoAngle = angle - Math.PI / 4;
-  ctx.lineTo(Math.cos(isoAngle) * 14, Math.sin(isoAngle) * 14);
-  ctx.stroke();
- 
-  // eye
-  ctx.fillStyle = '#0a0005';
-  ctx.beginPath();
-  ctx.ellipse(Math.cos(isoAngle) * 4, Math.sin(isoAngle) * 4, 2.5, 2.5, 0, 0, Math.PI * 2);
-  ctx.fill();
- 
+  ctx.rotate(isoAngle);
+  ctx.drawImage(spritePlayer, -SPRITE_W / 2, -SPRITE_H * 0.75, SPRITE_W, SPRITE_H);
+
   ctx.restore();
 }
  
 function drawEnemySprite(sx, sy, angle, hp, maxHp, type, dead, alerted) {
   ctx.save();
-  ctx.translate(sx, sy - 8);
- 
-  ctx.globalAlpha = .2;
+  ctx.translate(sx, sy);
+  ctx.globalAlpha = .25;
   ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.ellipse(0, 14, 10, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 4, 14, 6, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.globalAlpha = 1;
- 
+  ctx.restore();
+
   if (dead) {
-    ctx.fillStyle = '#ff2a6d55';
-    ctx.fillRect(-8, -8, 16, 16);
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(Math.PI / 2);
+    ctx.globalAlpha = 0.45;
+    ctx.drawImage(spriteEnemy, -SPRITE_H / 2, -SPRITE_W / 2, SPRITE_H, SPRITE_W);
     ctx.restore();
     return;
   }
- 
-  const colors = { grunt: '#ff6b35', heavy: '#ffcc00', shooter: '#b8ff3c' };
-  const col = colors[type] || '#ff6b35';
- 
-  // body (replace with sprite image)
-  ctx.fillStyle = col;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, type === 'heavy' ? 10 : 7, type === 'heavy' ? 10 : 7, 0, 0, Math.PI * 2);
-  ctx.fill();
- 
-  // alert indicator
-  if (alerted) {
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    const a = angle - Math.PI / 4;
-    ctx.moveTo(0, 0);
-    ctx.lineTo(Math.cos(a) * 12, Math.sin(a) * 12);
-    ctx.stroke();
-  }
- 
-  // hp bar
-  const barW = 20, barH = 3;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+  const isoAngle = angle - Math.PI / 4;
+  ctx.rotate(isoAngle);
+  ctx.drawImage(spriteEnemy, -SPRITE_W / 2, -SPRITE_H * 0.75, SPRITE_W, SPRITE_H);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(sx, sy);
+  const barW = 36, barH = 4;
   ctx.fillStyle = '#300';
-  ctx.fillRect(-barW/2, -18, barW, barH);
-  ctx.fillStyle = hp/maxHp > .5 ? '#0f0' : hp/maxHp > .25 ? '#ff0' : '#f00';
-  ctx.fillRect(-barW/2, -18, barW * (hp/maxHp), barH);
- 
+  ctx.fillRect(-barW / 2, -SPRITE_H * 0.75 - 8, barW, barH);
+  ctx.fillStyle = hp / maxHp > .5 ? '#0f0' : hp / maxHp > .25 ? '#ff0' : '#f00';
+  ctx.fillRect(-barW / 2, -SPRITE_H * 0.75 - 8, barW * (hp / maxHp), barH);
   ctx.restore();
 }
  
@@ -336,8 +313,6 @@ function drawBulletSprite(sx, sy, color) {
   ctx.save();
   ctx.translate(sx, sy);
   ctx.fillStyle = color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 8;
   ctx.beginPath();
   ctx.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -543,17 +518,18 @@ function tryPickup() {
 // ─── ENEMY AI ─────────────────────────────────────────────────────────────────
 function spawnEnemies(count) {
   const spawnPoints = [
-    {x:2,y:2},{x:17,y:2},{x:2,y:17},{x:17,y:17},
-    {x:2,y:9},{x:17,y:9},{x:9,y:2},{x:9,y:17},
-    {x:5,y:5},{x:14,y:5},{x:5,y:14},{x:14,y:14},
-  ];
+  {x:2.5,y:2.5},{x:17.5,y:2.5},{x:2.5,y:17.5},{x:17.5,y:17.5},
+  {x:2.5,y:7.5},{x:17.5,y:7.5},{x:7.5,y:2.5},{x:7.5,y:17.5},
+  {x:5.5,y:5.5},{x:13.5,y:5.5},{x:5.5,y:13.5},{x:13.5,y:13.5},
+  {x:11.5,y:2.5},{x:11.5,y:17.5},{x:2.5,y:11.5},{x:17.5,y:11.5},
+];
   const types = ['grunt','grunt','grunt','shooter','heavy'];
   for (let i = 0; i < count; i++) {
     const sp = spawnPoints[i % spawnPoints.length];
     const type = types[Math.floor(Math.random() * types.length)];
     enemies.push({
-      x: sp.x + Math.random() * 1.5,
-      y: sp.y + Math.random() * 1.5,
+      x: sp.x ,
+      y: sp.y ,
       hp: type === 'heavy' ? 120 : type === 'shooter' ? 60 : 80,
       maxHp: type === 'heavy' ? 120 : type === 'shooter' ? 60 : 80,
       type,
@@ -751,8 +727,8 @@ function startGame() {
 function resetGame() {
   cloneMap();
   score = 0; wave = 1;
-  player.x = 10; player.y = 10;
-  player.hp = player.maxHp;
+    player.x = 10.5; player.y = 10.5;
+    player.hp = player.maxHp;
   player.dead = false;
   player.weapon = { ...WEAPONS.pistol, key: 'pistol' };
   player.invTimer = 0;
