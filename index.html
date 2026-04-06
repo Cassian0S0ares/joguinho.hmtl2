@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>NEON KILL — Isometric Shooter</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+ 
+<div id="hud">
+  <div id="hud-left">
+    <div id="hud-score">0</div>
+    <div id="hud-wave">WAVE 1</div>
+  </div>
+  <div id="hud-right">
+    <div id="hp-bar-wrap">
+      <span id="hp-label">HP</span>
+      <div id="hp-bar"><div id="hp-fill"></div></div>
+    </div>
+    <div id="ammo-display">∞ AMMO</div>
+    <div id="weapon-display">PISTOL</div>
+  </div>
+</div>
+ 
+<canvas id="gameCanvas"></canvas>
+ 
+<div id="kill-feed"></div>
+ 
+<div id="overlay">
+  <h1>NEON KILL</h1>
+  <p>TOP-DOWN ISOMETRIC SHOOTER</p>
+  <div class="sub">KILL OR BE KILLED</div>
+  <button id="startBtn" onclick="startGame()">JOGAR</button>
+  <p style="margin-top:20px;font-size:11px;color:#444;letter-spacing:2px;">WASD MOVER · MOUSE MIRAR · CLICK ATIRAR · R RECARREGAR</p>
+</div>
+ 
+<div id="controls-hint">WASD · MOUSE AIM · CLICK SHOOT · R RELOAD · E PICKUP</div>
+<script src="script.js"></script>
+ </body>
+</html>
