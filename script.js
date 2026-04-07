@@ -3,6 +3,23 @@ const TILE = 48;
 const ISO_W = TILE * 2;
 const ISO_H = TILE;
 const MAP_W = 20, MAP_H = 20;
+
+
+const itemSprites = {};
+const itemSrcMap = {
+  medkit:  'kit.webp',
+  pistol:  'Pistol.webp',
+  shotgun: 'espingarda.webp',
+  uzi:     'uzi.webp',
+  rifle:   'rifle.webp',
+  vaca: 'vaca.png',
+};
+for (const [key, src] of Object.entries(itemSrcMap)) {
+  const img = new Image();
+  img.src = src;
+  itemSprites[key] = img;
+}
+const ITEM_SIZE = 36;
  
 // ─── CANVAS SETUP ────────────────────────────────────────────────────────────
 const canvas = document.getElementById('gameCanvas');
@@ -100,10 +117,10 @@ canvas.addEventListener('mouseup',   e => { if (e.button === 0) mouse.down = fal
  
 // ─── WEAPONS ──────────────────────────────────────────────────────────────────
 const WEAPONS = {
-  pistol:   { name:'PISTOL',   ammo:12, maxAmmo:12, damage:35, fireRate:350, spread:.04, bullets:1, color:'#05d9e8' },
-  shotgun:  { name:'SHOTGUN',  ammo:8,  maxAmmo:8,  damage:25, fireRate:700, spread:.35, bullets:6, color:'#ff6b35' },
+  pistol:   { name:'Pistolinha',   ammo:12, maxAmmo:12, damage:35, fireRate:350, spread:.04, bullets:1, color:'#05d9e8' },
+  shotgun:  { name:'Escopeta',  ammo:8,  maxAmmo:8,  damage:25, fireRate:700, spread:.35, bullets:6, color:'#ff6b35' },
   uzi:      { name:'UZI',      ammo:30, maxAmmo:30, damage:20, fireRate:100, spread:.12, bullets:1, color:'#b8ff3c' },
-  rifle:    { name:'RIFLE',    ammo:20, maxAmmo:20, damage:60, fireRate:500, spread:.01, bullets:1, color:'#ff2a6d' },
+  rifle:    { name:'Rifle',    ammo:20, maxAmmo:20, damage:60, fireRate:500, spread:.01, bullets:1, color:'#ff2a6d' },
 };
  
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
@@ -111,7 +128,8 @@ let score = 0, wave = 1, running = false;
 let lastShot = 0, reloading = false, reloadTimer = 0;
 let enemies = [], bullets = [], particles = [], drops = [], bloodDecals = [];
 let killFeedItems = [];
- 
+let timeStop = false, timeStopTimer = 0;
+
 const player = {
   x: 10, y: 10, hp: 100, maxHp: 100,
   angle: 0, speed: .07,
@@ -320,25 +338,26 @@ function drawBulletSprite(sx, sy, color) {
 }
  
 function drawDrop(sx, sy, type) {
+  const img = itemSprites[type];
+  if (!img) return;
+
   ctx.save();
   ctx.translate(sx, sy - 6);
-  const wDef = WEAPONS[type];
-  if (wDef) {
-    ctx.strokeStyle = wDef.color;
-    ctx.lineWidth = 2;
-    ctx.shadowColor = wDef.color;
-    ctx.shadowBlur = 12;
-    ctx.strokeRect(-8, -4, 16, 8);
-    ctx.fillStyle = wDef.color + '33';
-    ctx.fillRect(-8, -4, 16, 8);
-    ctx.fillStyle = wDef.color;
-    ctx.font = '7px Share Tech Mono';
-    ctx.textAlign = 'center';
-    ctx.fillText(wDef.name[0], 0, 3);
-  }
+
+  const pulse = 1 + Math.sin(Date.now() / 250) * 0.07;
+  ctx.scale(pulse, pulse);
+
+  ctx.globalAlpha = .25;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(0, ITEM_SIZE * 0.35, ITEM_SIZE * 0.45, ITEM_SIZE * 0.15, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.drawImage(img, -ITEM_SIZE / 2, -ITEM_SIZE / 2, ITEM_SIZE, ITEM_SIZE);
+
   ctx.restore();
 }
- 
 // ─── PARTICLES ────────────────────────────────────────────────────────────────
 function spawnBlood(wx, wy, count = 8) {
   for (let i = 0; i < count; i++) {
@@ -506,14 +525,28 @@ function tryPickup() {
     const d = drops[i];
     const dist = Math.hypot(d.wx - player.x, d.wy - player.y);
     if (dist < 1.2) {
-      player.weapon = { ...WEAPONS[d.type], key: d.type };
-      drops.splice(i, 1);
-      updateHUD();
-      addKillFeed('WEAPON PICKED UP: ' + WEAPONS[d.type].name);
+      if (d.type === 'medkit') {
+        player.hp = player.maxHp;
+        drops.splice(i, 1);
+        updateHUD();
+        addKillFeed('Ta helleado');
+      } else {
+        player.weapon = { ...WEAPONS[d.type], key: d.type };
+        drops.splice(i, 1);
+        updateHUD();
+        addKillFeed('WEAPON PICKED UP: ' + WEAPONS[d.type].name);
+      }
+    }
+      else if (d.type === 'vaca') {
+  timeStop = true;
+  timeStopTimer = 300; 
+  addKillFeed('Vaca medonha contaminou o seu jogo');
+
       return;
     }
   }
 }
+
  
 // ─── ENEMY AI ─────────────────────────────────────────────────────────────────
 function spawnEnemies(count) {
@@ -651,11 +684,18 @@ function killEnemy(e, idx) {
   score += e.type === 'heavy' ? 300 : e.type === 'shooter' ? 200 : 100;
   addKillFeed('KILL +' + (e.type === 'heavy' ? 300 : e.type === 'shooter' ? 200 : 100));
   updateHUD();
-  // chance to drop weapon
+  // chance to drop weapon (30%)
   if (Math.random() < .3) {
     const wTypes = Object.keys(WEAPONS).filter(k => k !== 'pistol');
-    drops.push({ wx: e.x, wy: e.y, type: wTypes[Math.floor(Math.random() * wTypes.length)] });
+    drops.push({ wx: e.x, wy: e.y + 0.5, type: wTypes[Math.floor(Math.random() * wTypes.length)] });
   }
+  // chance to drop medkit (20%)
+  if (Math.random() < .2) {
+    drops.push({ wx: e.x + 0.5, wy: e.y, type: 'medkit' });
+  }
+  if (Math.random() < .15) {
+  drops.push({ wx: e.x - 0.5, wy: e.y - 0.5, type: 'vaca' });
+}
   checkWaveClear();
 }
  
@@ -750,6 +790,8 @@ function gameLoop(ts) {
   requestAnimationFrame(gameLoop);
   const dt = Math.min(ts - lastTime, 50);
   lastTime = ts;
+  if (!timeStop) updateEnemies(dt);
+
  
   // Input
   if (!player.dead) {
@@ -863,7 +905,7 @@ function gameLoop(ts) {
       ctx.font = '10px Share Tech Mono';
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
-      ctx.fillText('[E] PEGAR ' + WEAPONS[d.type].name, s.x, s.y - 28);
+      ctx.fillText('[E] PEGAR ' + (d.type === 'medkit' ? 'KIT MÉDICO' : WEAPONS[d.type].name), s.x, s.y - 28);
       ctx.restore();
     }
   }
