@@ -109,6 +109,7 @@ window.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   if (e.key.toLowerCase() === 'r') reload();
   if (e.key.toLowerCase() === 'e') tryPickup();
+  if (e.key.toLowerCase() === 'p') useVaca();
 });
 window.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
 canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -135,6 +136,7 @@ const player = {
   angle: 0, speed: .07,
   weapon: { ...WEAPONS.pistol, key: 'pistol' },
   invTimer: 0,
+  hasVaca: false,
   dead: false,
 };
  
@@ -530,22 +532,21 @@ function tryPickup() {
         drops.splice(i, 1);
         updateHUD();
         addKillFeed('Ta helleado');
+      } else if (d.type === 'vaca') {
+        player.hasVaca = true;
+        addKillFeed('Vaca medonha foi invocada! Pressione P para usar!');
       } else {
         player.weapon = { ...WEAPONS[d.type], key: d.type };
         drops.splice(i, 1);
         updateHUD();
         addKillFeed('WEAPON PICKED UP: ' + WEAPONS[d.type].name);
       }
-    }
-      else if (d.type === 'vaca') {
-  timeStop = true;
-  timeStopTimer = 300; 
-  addKillFeed('Vaca medonha contaminou o seu jogo');
-
       return;
     }
+      
+    }
   }
-}
+
 
  
 // ─── ENEMY AI ─────────────────────────────────────────────────────────────────
@@ -790,7 +791,8 @@ function gameLoop(ts) {
   requestAnimationFrame(gameLoop);
   const dt = Math.min(ts - lastTime, 50);
   lastTime = ts;
-  if (!timeStop) updateEnemies(dt);
+if (timeStop) { timeStopTimer--; if (timeStopTimer <= 0) { timeStop = false; } }
+if (!timeStop) updateEnemies(dt);
 
  
   // Input
@@ -813,7 +815,6 @@ function gameLoop(ts) {
   }
  
   updateCamera();
-  updateEnemies(dt);
   updateBullets();
   updateParticles();
  
@@ -905,13 +906,24 @@ function gameLoop(ts) {
       ctx.font = '10px Share Tech Mono';
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
-      ctx.fillText('[E] PEGAR ' + (d.type === 'medkit' ? 'KIT MÉDICO' : WEAPONS[d.type].name), s.x, s.y - 28);
+    const label = d.type === 'medkit' ? 'KIT MÉDICO' 
+            : d.type === 'vaca'   ? 'VACA MEDONHA' 
+            : WEAPONS[d.type].name;
+      ctx.fillText('[E] PEGAR ' + label, s.x, s.y - 28);
       ctx.restore();
     }
   }
  
   ctx.restore();
 }
- 
+function useVaca() {
+  if (!running || player.dead || !player.hasVaca || timeStop) return;
+  player.hasVaca = false;
+  timeStop = true;
+  timeStopTimer = 300;
+  addKillFeed(' Vaca medonha contaminou o seu jogos');
+  updateHUD();
+}
+
 // init
 cloneMap();
